@@ -78,7 +78,7 @@ export default async function routes(app: FastifyTypedInstance) {
             return reply.send({ mensagem: 'Código OTP enviado para o seu WhatsApp.' });
 
         } catch (error) {
-            app.log.error('Erro ao solicitar OTP:', error);
+            console.error('Erro ao solicitar OTP:', error);
             return reply.status(500).send({ mensagem: 'Erro interno ao solicitar OTP.' });
         }
     })
@@ -182,7 +182,7 @@ export default async function routes(app: FastifyTypedInstance) {
             });
 
         } catch (error) {
-            app.log.error('Erro ao verificar OTP:', error);
+            console.error('Erro ao verificar OTP:', error);
             return reply.status(500).send({ mensagem: 'Erro interno ao verificar OTP.' });
         }
     })
