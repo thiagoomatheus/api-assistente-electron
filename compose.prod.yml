@@ -106,4 +106,3 @@ networks:
   api-electron:
     name: api-electron
     driver: bridge
-    external: true
