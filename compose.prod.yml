@@ -3,7 +3,7 @@ services:
   # Evolution API Service
   evolution-api:
     container_name: evolution_api
-    image: atendai/evolution-api-lite:v2.1.2
+    image: atendai/evolution-api-lite:latest
     restart: always
     ports:
       - "8083:8080"
