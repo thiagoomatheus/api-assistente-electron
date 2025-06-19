@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { FastifyTypedInstance } from "./types";
+import { AsaasClient, FastifyTypedInstance } from "./types";
 import jwt from "jsonwebtoken";
 import { prisma } from "./utils/prisma";
 import { differenceInSeconds } from "date-fns";
@@ -7,6 +7,235 @@ import { authenticateJWT } from "./hooks/auth";
 import { ContentListUnion, GenerateContentConfig, GoogleGenAI, Type } from "@google/genai";
 
 export default async function routes(app: FastifyTypedInstance) {
+
+    app.post('/webhooks', async (req, reply) => {
+
+        const webhook:any = req.body;
+        
+        if (process.env.WEBHOOK_ACTIVE !== 'true') {
+            return reply.status(200).send('Webhook desativado');
+        }
+
+        if (!webhook) {
+            return reply.status(200).send('Body ausente');
+        }
+
+        if (!webhook.event) {
+            return reply.status(200).send('Event ausente');
+        }
+
+        if (!webhook.payment.customer) {
+            return reply.status(200).send('Customer ausente');
+        }
+
+        let usuario = await prisma.usuario.findFirst({
+            where: {
+                customerId: webhook.payment.customer
+            }
+        })
+
+        const marcarPago = async () => {
+            await prisma.usuario.update({
+                where: {
+                    id: usuario!.id
+                },
+                data: {
+                    estaPago: true
+                }
+            })
+        }
+
+        const marcarNaoPago = async () => {
+            await prisma.usuario.update({
+                where: {
+                    id: usuario!.id
+                },
+                data: {
+                    estaPago: false
+                }
+            })
+        }
+
+        const criarUsuario = async () => {
+            const usuarioAsaas = await fetch(`${process.env.ASAAS_API_URL}/v3/customers/${webhook.payment.customer}`, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
+                    'access_token': `${process.env.ASAAS_API_KEY}`
+                }
+            })
+
+            const usuarioAsaasJson: AsaasClient = await usuarioAsaas.json();
+
+            usuario = await prisma.usuario.create({
+                data: {
+                    telefone: usuarioAsaasJson.mobilePhone,
+                    customerId: webhook.payment.customer,
+                    estaPago: true
+                }
+            })
+        }
+
+        switch (webhook.event) {
+            case 'PAYMENT_RECEIVED': {
+
+                if (webhook.payment.billingType === "CREDIT_CARD") {
+                    return reply.status(200).send('Webhook recebido com sucesso.');
+                }
+
+                if (!usuario) {
+                    criarUsuario();
+                }
+                
+                await marcarPago();
+
+                break;
+            }
+            case 'PAYMENT_CONFIRMED': {
+
+                if (webhook.payment.billingType !== "CREDIT_CARD") {
+                    return reply.status(200).send('Webhook recebido com sucesso.');
+                }
+
+                if (!usuario) {
+
+                    await criarUsuario();
+                }
+                
+                await marcarPago();
+
+                break;
+            }
+            case 'PAYMENT_OVERDUE': {
+
+                if (!usuario) {
+                    return reply.status(200).send('Webhook recebido com sucesso.');
+                }
+
+                marcarNaoPago();
+
+                break;
+            }
+            case 'PAYMENT_REFUNDED': {
+
+                if (!usuario) {
+                    return reply.status(200).send('Webhook recebido com sucesso.');
+                }
+
+                await marcarNaoPago();
+
+                break;
+            }
+            case 'SUBSCRIPTION_INACTIVATED': {
+
+                if (!usuario) {
+                    return reply.status(200).send('Webhook recebido com sucesso.');
+                }
+
+                await marcarNaoPago();
+
+                break;
+            }
+            case 'SUBSCRIPTION_DELETED': {
+
+                if (!usuario) {
+                    return reply.status(200).send('Webhook recebido com sucesso.');
+                }
+
+                await prisma.usuario.delete({
+                    where: {
+                        id: usuario.id
+                    }
+                })
+
+                await fetch(`${process.env.ASAAS_API_URL}/v3/customers/${webhook.payment.customer}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
+                        'access_token': `${process.env.ASAAS_API_KEY}`
+                    }
+                })
+
+                break;
+            
+            }
+            default:
+                return reply.status(200).send('Webhook não configurado.');
+        }
+
+        return reply.status(200).send('Webhook recebido com sucesso.');
+    })
+
+    app.post('/admin/users', {
+        schema: {
+            tags: ['Admin'],
+            description: 'Cria um novo usuário.',
+            body: z.object({
+                telefone: z.string(),
+                estaPago: z.boolean(),
+                customerId: z.string(),
+                adminApiKey: z.string(),
+            }),
+            response: {
+                200: z.object({
+                sucesso: z.boolean(),
+                mensagem: z.string(),
+                }),
+                400: z.object({
+                sucesso: z.boolean(),
+                mensagem: z.string(),
+                }),
+                500: z.object({
+                sucesso: z.boolean(),
+                mensagem: z.string(),
+                }),
+            },
+        },
+    }, async (req, reply) => {
+
+        if (process.env.ADMIN_ACTIVE !== 'true') {
+            return reply.status(400).send({
+                sucesso: false,
+                mensagem: 'Admin desativado.',
+            });
+        }
+        const { telefone, estaPago, adminApiKey, customerId } = req.body;
+
+        if (!telefone) {
+            return reply.status(400).send({
+                sucesso: false,
+                mensagem: 'Telefone e login obrigatórios.',
+            });
+        }
+
+        if (adminApiKey !== process.env.ADMIN_API_KEY) {
+            return reply.status(400).send({
+                sucesso: false,
+                mensagem: 'Chave de admin inválida.',
+            });
+        }
+
+        try {
+        await prisma.usuario.create({
+                data: {
+                    customerId: customerId,
+                    telefone: telefone,
+                    estaPago: estaPago
+                },
+        });
+
+        return reply.status(200).send({
+            sucesso: true,
+            mensagem: 'Usuário criado com sucesso.',
+        });
+        } catch (error) {
+            return reply.status(500).send({
+                sucesso: false,
+                mensagem: 'Erro ao criar usuário: ' + error,
+            });
+        }
+    });
 
     app.post("/auth/request-otp", {
         schema: {
