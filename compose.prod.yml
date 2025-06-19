@@ -31,6 +31,7 @@ services:
       - CACHE_REDIS_PREFIX_KEY=evolutionv2
       - CACHE_REDIS_SAVE_INSTANCES=false
       - CACHE_LOCAL_ENABLED=false
+      - SERVER_DISABLE_MANAGER=${SERVER_DISABLE_MANAGER}
     depends_on:
       - postgres
       - redis
@@ -65,7 +66,6 @@ services:
       - POSTGRES_USER=${SERVICE_USER_POSTGRES}
       - POSTGRES_PASSWORD=${SERVICE_PASSWORD_POSTGRES}
       - POSTGRES_DB=${POSTGRES_DB:-postgres}
-      - 
     volumes:
       - ./postgres-init-scripts:/docker-entrypoint-initdb.d/init-schemas.sql
       - postgres_data:/var/lib/postgresql/data
@@ -92,6 +92,11 @@ services:
       - API_HOST=${API_HOST}
       - INSTANCIA_EVO=${SERVICE_USER_EVO}
       - EVOLUTION_API_URL=${URL_EVOLUTION_API}
+      - ADMIN_API_KEY=${SERVICE_BASE64_128_ADMIN}
+      - WEBHOOK_ACTIVE=${WEBHOOK_ACTIVE}
+      - ADMIN_ACTIVE=${ADMIN_ACTIVE}
+      - ASAAS_API_KEY=${API_KEY_ASAAS}
+      - ASAAS_API_URL=${API_URL_ASAAS}
     depends_on:
       - postgres
     networks:
