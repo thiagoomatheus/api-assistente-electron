@@ -11,7 +11,7 @@ model Usuario {
   id       String @id @default(uuid())
   telefone String @unique
   otp      Otp?
-  customerId String?
+  customerId String @unique
   estaPago Boolean @default(false)
 }
 
