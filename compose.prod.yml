@@ -31,7 +31,6 @@ services:
       - CACHE_REDIS_PREFIX_KEY=evolutionv2
       - CACHE_REDIS_SAVE_INSTANCES=false
       - CACHE_LOCAL_ENABLED=false
-      - SERVER_DISABLE_MANAGER=${SERVER_DISABLE_MANAGER}
     depends_on:
       - postgres
       - redis
