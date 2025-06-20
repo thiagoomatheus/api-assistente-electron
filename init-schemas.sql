@@ -1,4 +1,3 @@
--- Criar os esquemas necessários
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname = 'api_scheme') THEN
