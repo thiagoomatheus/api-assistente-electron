@@ -338,7 +338,7 @@ export default async function routes(app: FastifyTypedInstance) {
                 'apiKey': process.env.EVOLUTION_API_KEY!,
             };
             const data = {
-                number: telefone,
+                number: `+55${telefone}`,
                 textMessage: {
                     text: message,
                 },
