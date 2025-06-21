@@ -10,21 +10,31 @@ export default async function routes(app: FastifyTypedInstance) {
 
     app.post('/webhooks', async (req, reply) => {
 
+        const url = req.url;
+
+        console.log(`Iniciando rota ${url}`);
+
         const webhook:any = req.body;
+
+        console.log(webhook.event);
         
         if (process.env.WEBHOOK_ACTIVE !== 'true') {
+            console.log('Webhook desativado');
             return reply.status(200).send('Webhook desativado');
         }
 
         if (!webhook) {
+            console.log('Body ausente');
             return reply.status(200).send('Body ausente');
         }
 
         if (!webhook.event) {
+            console.log('Event ausente');
             return reply.status(200).send('Event ausente');
         }
 
         if (!webhook.payment.customer) {
+            console.log('Customer ausente');
             return reply.status(200).send('Customer ausente');
         }
 
@@ -80,65 +90,80 @@ export default async function routes(app: FastifyTypedInstance) {
             case 'PAYMENT_RECEIVED': {
 
                 if (webhook.payment.billingType === "CREDIT_CARD") {
+                    console.log('Recebido compra com cartão');
                     return reply.status(200).send('Webhook recebido com sucesso.');
                 }
 
                 if (!usuario) {
                     criarUsuario();
                 }
-                
+
                 await marcarPago();
+                
+                console.log('Recebido compra com boleto ou pix');
 
                 break;
             }
             case 'PAYMENT_CONFIRMED': {
 
                 if (webhook.payment.billingType !== "CREDIT_CARD") {
+                    console.log('Confirmado compra com boleto ou pix');
                     return reply.status(200).send('Webhook recebido com sucesso.');
                 }
 
                 if (!usuario) {
-
                     await criarUsuario();
                 }
                 
                 await marcarPago();
-
+                
+                console.log('Confirmado compra com cartão');
+                
                 break;
             }
             case 'PAYMENT_OVERDUE': {
 
                 if (!usuario) {
+                    console.log('Usuário inexistente');
                     return reply.status(200).send('Webhook recebido com sucesso.');
-                }
-
-                marcarNaoPago();
+                };
+                
+                await marcarNaoPago();
+                
+                console.log('Cobrança vencido');
 
                 break;
             }
             case 'PAYMENT_REFUNDED': {
 
                 if (!usuario) {
+                    console.log('Usuário inexistente');
                     return reply.status(200).send('Webhook recebido com sucesso.');
                 }
 
                 await marcarNaoPago();
+
+                console.log('Reembolso realizado');
 
                 break;
             }
             case 'SUBSCRIPTION_INACTIVATED': {
 
                 if (!usuario) {
+                    console.log('Usuário inexistente');
                     return reply.status(200).send('Webhook recebido com sucesso.');
                 }
 
                 await marcarNaoPago();
+
+                console.log('Assinatura inativa');
 
                 break;
             }
             case 'SUBSCRIPTION_DELETED': {
 
                 if (!usuario) {
+                    console.log('Usuário inexistente');
                     return reply.status(200).send('Webhook recebido com sucesso.');
                 }
 
@@ -157,10 +182,13 @@ export default async function routes(app: FastifyTypedInstance) {
                     }
                 })
 
+                console.log('Assinatura cancelada');
+
                 break;
             
             }
             default:
+                console.log(`Evento desconhecido: ${webhook.event}`);
                 return reply.status(200).send('Webhook não configurado.');
         }
 
@@ -193,6 +221,10 @@ export default async function routes(app: FastifyTypedInstance) {
             },
         },
     }, async (req, reply) => {
+
+        const url = req.url;
+
+        console.log(`Iniciando rota ${url}`);
 
         if (process.env.ADMIN_ACTIVE !== 'true') {
             return reply.status(400).send({
@@ -258,10 +290,24 @@ export default async function routes(app: FastifyTypedInstance) {
         }
     }, async (req, reply) => {
 
+        const url = req.url;
+
+        console.log(`Iniciando rota ${url}`);
+        
         const { telefone } = req.body;
 
         if (!telefone) {
             return reply.status(400).send({ mensagem: 'Número de telefone é obrigatório.' });
+        }
+
+        const usuario = await prisma.usuario.findUnique({
+            where: {
+                telefone: telefone
+            }
+        });
+
+        if (!usuario) {
+            return reply.status(400).send({ mensagem: 'Usuário não cadastrado!' });
         }
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -298,13 +344,18 @@ export default async function routes(app: FastifyTypedInstance) {
                 },
             };
 
-            await fetch(`${process.env.EVOLUTION_API_URL!}/message/sendText/${process.env.INSTANCIA_EVO}`, {
-                method: 'POST',
-                headers: headers,
-                body: JSON.stringify(data),
-            })
+            try {
+                await fetch(`${process.env.EVOLUTION_API_URL!}/message/sendText/${process.env.INSTANCIA_EVO}`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(data),
+                })
+    
+                return reply.send({ mensagem: 'Código OTP enviado para o seu WhatsApp.' });
+            } catch (error) {
+                throw new Error(`${error}`);
+            }
 
-            return reply.send({ mensagem: 'Código OTP enviado para o seu WhatsApp.' });
 
         } catch (error) {
             console.error('Erro ao solicitar OTP:', error);
@@ -336,12 +387,17 @@ export default async function routes(app: FastifyTypedInstance) {
         }
     }, async (req, reply) => {
 
+        const url = req.url;
+
+        console.log(`Iniciando rota ${url}`);
+
         const MAX_TENTATIVAS = 3
         const TEMPO_ESPERA = 60
 
         const { telefone, codigo } = req.body
 
         if (!telefone || !codigo) {
+            console.warn('Número de telefone e código obrigatórios.');
             return reply.status(400).send({ mensagem: 'Número de telefone e código são obrigatórios.' });
         }
 
@@ -370,22 +426,27 @@ export default async function routes(app: FastifyTypedInstance) {
             });
 
             if (!otpDB) {
+                console.error('OTP inválido.');
                 return reply.status(400).send({ mensagem: 'Código OTP inválido.' });
             }
 
             if (otpDB.tentativas >= MAX_TENTATIVAS) {
+                console.error('Tentativas excedidas.');
                 return reply.status(400).send({ mensagem: 'Tentativas excedidas. Gere outro código e tente novamente!' });
             }
 
             if (differenceInSeconds(new Date(), otpDB.ultimaTentativa) < TEMPO_ESPERA) {
+                console.error('Voce precisa esperar 60 segundos para gerar um novo código OTP.');
                 return reply.status(400).send({ mensagem: 'Você precisa esperar 60 segundos para gerar um novo código OTP.' });
             }
 
             if (otpDB.foiUsado) {
+                console.error('Código OTP ja utilizado.');
                 return reply.status(400).send({ mensagem: 'Código OTP já utilizado.' });
             }
 
             if (new Date() > otpDB.expiraEm) {
+                console.error('Código OTP expirado.');
                 return reply.status(400).send({ mensagem: 'Código OTP expirado.' });
             }
 
@@ -393,6 +454,8 @@ export default async function routes(app: FastifyTypedInstance) {
                 where: { id: otpDB.id },
                 data: { foiUsado: true, tentativas: otpDB.tentativas + 1 },
             });
+
+            console.log(`Código OTP verificado com sucesso para o telefone ${telefone}.`);
 
             const payload = {
                 telefone: telefone,
@@ -444,6 +507,11 @@ export default async function routes(app: FastifyTypedInstance) {
             }
         }
     }, async (req, reply) => {
+
+        const url = req.url;
+
+        console.log(`Iniciando rota ${url}`);
+
         const { cronograma, materias } = req.body
 
         const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -521,6 +589,9 @@ Aguarde o envio do cronograma em PDF e a lista de habilidades do Currículo Paul
             },
         ];
 
+        console.log('Enviar para IA');
+        
+
         const response = await ai.models.generateContent({
             model,
             config,
@@ -528,11 +599,14 @@ Aguarde o envio do cronograma em PDF e a lista de habilidades do Currículo Paul
         });
 
         if (!response.text) {
+            console.log('Resposta vazia');
             return reply.status(500).send({
                 mensagem: "Erro ao obter resposta",
             });
         }
 
+        console.log('Resposta obtida');
+        
         return reply.status(200).send({
             mensagem: "Resposta obtida com sucesso",
             dados: JSON.parse(response.text)
