@@ -353,11 +353,17 @@ export default async function routes(app: FastifyTypedInstance) {
             console.log(`Enviando código para celular - ${process.env.EVOLUTION_API_URL!}/message/sendText/${process.env.INSTANCIA_EVO}`)
 
             try {
-                await fetch(`${process.env.EVOLUTION_API_URL!}/message/sendText/${process.env.INSTANCIA_EVO}`, {
+                const resultado = await fetch(`${process.env.EVOLUTION_API_URL!}/message/sendText/${process.env.INSTANCIA_EVO}`, {
                     method: 'POST',
                     headers: headers,
                     body: JSON.stringify(data),
                 })
+
+                if (!resultado.ok) {
+                    const resultadoJson = await resultado.json();
+                    console.log('Erro ao enviar OTP para o celular: ' + resultadoJson.errors[0].description);
+                    return reply.status(500).send({ mensagem: 'Erro ao enviar OTP para o celular.' });
+                }
     
                 console.log('Código OTP enviado para o seu WhatsApp.')
                 return reply.send({ mensagem: 'Código OTP enviado para o seu WhatsApp.' });
