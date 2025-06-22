@@ -341,7 +341,7 @@ export default async function routes(app: FastifyTypedInstance) {
             const message = `Seu código de autenticação é: *${otp}*`;
             const headers = {
                 'Content-Type': 'application/json',
-                'apiKey': process.env.EVOLUTION_API_KEY!,
+                'apikey': process.env.EVOLUTION_API_KEY!,
             };
             const data = {
                 number: `+55${telefone}`,
