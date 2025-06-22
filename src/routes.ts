@@ -361,7 +361,7 @@ export default async function routes(app: FastifyTypedInstance) {
 
                 if (!resultado.ok) {
                     const resultadoJson = await resultado.json();
-                    console.log('Erro ao enviar OTP para o celular: ' + resultadoJson);
+                    console.log('Erro ao enviar OTP para o celular: ' + resultadoJson.response.message);
                     return reply.status(500).send({ mensagem: 'Erro ao enviar OTP para o celular.' });
                 }
     
