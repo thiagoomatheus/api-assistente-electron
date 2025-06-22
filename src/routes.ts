@@ -297,6 +297,7 @@ export default async function routes(app: FastifyTypedInstance) {
         const { telefone } = req.body;
 
         if (!telefone) {
+            console.log('Número de telefone é obrigatório.');
             return reply.status(400).send({ mensagem: 'Número de telefone é obrigatório.' });
         }
 
@@ -307,12 +308,17 @@ export default async function routes(app: FastifyTypedInstance) {
         });
 
         if (!usuario) {
+            console.log('Usuário não cadastrado!')
             return reply.status(400).send({ mensagem: 'Usuário não cadastrado!' });
         }
+
+        console.log('Gerando código OTP')
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
         const expiraEm = new Date(Date.now() + 5 * 60 * 1000);
+
+        console.log('Inserindo otp no banco de dados')
 
         try {
             await prisma.otp.upsert({
@@ -344,6 +350,8 @@ export default async function routes(app: FastifyTypedInstance) {
                 },
             };
 
+            console.log(`Enviando código para celular - ${process.env.EVOLUTION_API_URL!}/message/sendText/${process.env.INSTANCIA_EVO}`)
+
             try {
                 await fetch(`${process.env.EVOLUTION_API_URL!}/message/sendText/${process.env.INSTANCIA_EVO}`, {
                     method: 'POST',
@@ -351,6 +359,7 @@ export default async function routes(app: FastifyTypedInstance) {
                     body: JSON.stringify(data),
                 })
     
+                console.log('Código OTP enviado para o seu WhatsApp.')
                 return reply.send({ mensagem: 'Código OTP enviado para o seu WhatsApp.' });
             } catch (error) {
                 throw new Error(`${error}`);
@@ -396,10 +405,14 @@ export default async function routes(app: FastifyTypedInstance) {
 
         const { telefone, codigo } = req.body
 
+        console.log(`Numero de telefone: ${telefone}`)
+
         if (!telefone || !codigo) {
             console.warn('Número de telefone e código obrigatórios.');
             return reply.status(400).send({ mensagem: 'Número de telefone e código são obrigatórios.' });
         }
+
+        console.log('Verificando OTP no banco de dados')
 
         try {
             const otpDB = await prisma.$transaction(async (prisma) => {
@@ -449,6 +462,8 @@ export default async function routes(app: FastifyTypedInstance) {
                 console.error('Código OTP expirado.');
                 return reply.status(400).send({ mensagem: 'Código OTP expirado.' });
             }
+
+            console.log('Atualizando OTP no banco de dados')
 
             await prisma.otp.update({
                 where: { id: otpDB.id },
