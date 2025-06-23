@@ -318,7 +318,7 @@ export default async function routes(app: FastifyTypedInstance) {
         };
 
         
-        if (usuario.otp?.criadoEm) {
+        if (usuario.otp) {
             console.log('Verificando permissão para envio de OTP');
             
             const TEMPO_ESPERA = 60;
@@ -344,14 +344,12 @@ export default async function routes(app: FastifyTypedInstance) {
                 },
                 update: {
                     codigo: otp,
-                    expiraEm: expiraEm,
-                    ultimaTentativa: new Date()
+                    expiraEm: expiraEm
                 },
                 create: {
                     telefone: telefone,
                     codigo: otp,
-                    expiraEm: expiraEm,
-                    ultimaTentativa: new Date()
+                    expiraEm: expiraEm
                 }
             });
 
@@ -471,7 +469,7 @@ export default async function routes(app: FastifyTypedInstance) {
                 return reply.status(400).send({ mensagem: 'Tentativas excedidas. Gere outro código e tente novamente!' });
             }
 
-            if (differenceInSeconds(new Date(), otpDB.ultimaTentativa) < TEMPO_ESPERA) {
+            if (otpDB.ultimaTentativa && (differenceInSeconds(new Date(), otpDB.ultimaTentativa) < TEMPO_ESPERA)) {
                 console.error('Você precisa esperar 60 segundos para tentar novamente.');
                 return reply.status(400).send({ mensagem: 'Você precisa esperar 60 segundos para tentar novamente.' });
             }
