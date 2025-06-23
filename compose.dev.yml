@@ -14,7 +14,7 @@ services:
       - /app/node_modules
     command: ["npx", "tsx", "src/server.ts"]
     depends_on:
-      - postgres-api-bot-diario
+      - postgres-electron
 
   postgres-electron:
     image: 'postgres:16-alpine'
@@ -26,15 +26,6 @@ services:
       - postgres_data_dev:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-
-  evolution-lite:
-    image: atendai/evolution-api-lite:v2.1.2
-    ports:
-      - "8080:8080"
-    env_file:
-      - .env
-    volumes:
-      - evolution_instances:/evolution/instances
 
 volumes:
   # Volumes dedicados para o ambiente de desenvolvimento
