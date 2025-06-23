@@ -250,11 +250,11 @@ export default async function routes(app: FastifyTypedInstance) {
 
         try {
         await prisma.usuario.create({
-                data: {
-                    customerId: customerId,
-                    telefone: telefone,
-                    estaPago: estaPago
-                },
+            data: {
+                customerId: customerId,
+                telefone: telefone,
+                estaPago: estaPago
+            },
         });
 
         return reply.status(200).send({
@@ -301,18 +301,35 @@ export default async function routes(app: FastifyTypedInstance) {
             return reply.status(400).send({ mensagem: 'Número de telefone é obrigatório.' });
         }
 
+        console.log('Verificando usuário');
+
         const usuario = await prisma.usuario.findUnique({
             where: {
                 telefone: telefone
+            },
+            include: {
+                otp: true
             }
         });
 
         if (!usuario) {
             console.log('Usuário não cadastrado!')
             return reply.status(400).send({ mensagem: 'Usuário não cadastrado!' });
+        };
+
+        
+        if (usuario.otp?.criadoEm) {
+            console.log('Verificando permissão para envio de OTP');
+            
+            const TEMPO_ESPERA = 60;
+
+            if (differenceInSeconds(new Date(), usuario.otp.criadoEm) < TEMPO_ESPERA) {
+                console.error('Você precisa esperar 60 segundos para gerar um novo código.');
+                return reply.status(400).send({ mensagem: 'Você precisa esperar 60 segundos para gerar um novo código.' });
+            }
         }
 
-        console.log('Gerando código OTP')
+        console.log('Gerando código OTP');
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -455,8 +472,8 @@ export default async function routes(app: FastifyTypedInstance) {
             }
 
             if (differenceInSeconds(new Date(), otpDB.ultimaTentativa) < TEMPO_ESPERA) {
-                console.error('Voce precisa esperar 60 segundos para gerar um novo código OTP.');
-                return reply.status(400).send({ mensagem: 'Você precisa esperar 60 segundos para gerar um novo código OTP.' });
+                console.error('Você precisa esperar 60 segundos para tentar novamente.');
+                return reply.status(400).send({ mensagem: 'Você precisa esperar 60 segundos para tentar novamente.' });
             }
 
             if (otpDB.foiUsado) {
