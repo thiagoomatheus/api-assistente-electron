@@ -476,7 +476,7 @@ export default async function routes(app: FastifyTypedInstance) {
                 return reply.status(400).send({ mensagem: 'Você precisa esperar 60 segundos para tentar novamente.' });
             }
 
-            if (otpDB.foiUsado) {
+            if (otpDB.codigo === codigo && otpDB.foiUsado) {
                 console.error('Código OTP ja utilizado.');
                 return reply.status(400).send({ mensagem: 'Código OTP já utilizado.' });
             }
