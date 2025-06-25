@@ -345,13 +345,15 @@ export default async function routes(app: FastifyTypedInstance) {
                 update: {
                     codigo: otp,
                     expiraEm: expiraEm,
-                    criadoEm: new Date()
+                    criadoEm: new Date(),
+                    foiUsado: false
                 },
                 create: {
                     telefone: telefone,
                     codigo: otp,
                     expiraEm: expiraEm,
-                    criadoEm: new Date()
+                    criadoEm: new Date(),
+                    foiUsado: false
                 }
             });
 
