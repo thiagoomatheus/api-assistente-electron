@@ -525,7 +525,6 @@ export default async function routes(app: FastifyTypedInstance) {
             tags: ['Cronograma'],
             description: 'Envia cronograma a IA e retorna dados necessários para o front-end.',
             body: z.object({
-                token: z.string(),
                 cronograma: z.string(),
                 materias: z.array(z.object({
                     materia: z.string(),
@@ -598,16 +597,16 @@ Aguarde o envio do cronograma em PDF e a lista de habilidades do Currículo Paul
                 }
             ],
             responseSchema: {
-            type: Type.ARRAY,
-            items: {
-                type: Type.OBJECT,
-                properties: {
-                dia: { type: Type.STRING },
-                materia: { type: Type.STRING },
-                descricao: { type: Type.STRING },
-                habilidades: { type: Type.ARRAY, items: { type: Type.STRING } },
-                },
-            }
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                    dia: { type: Type.STRING },
+                    materia: { type: Type.STRING },
+                    descricao: { type: Type.STRING },
+                    habilidades: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    },
+                }
             }
         };
 
@@ -630,7 +629,6 @@ Aguarde o envio do cronograma em PDF e a lista de habilidades do Currículo Paul
         ];
 
         console.log('Enviar para IA');
-        
 
         const response = await ai.models.generateContent({
             model,
