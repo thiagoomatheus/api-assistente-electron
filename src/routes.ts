@@ -492,7 +492,7 @@ export default async function routes(app: FastifyTypedInstance) {
 
             await prisma.otp.update({
                 where: { id: otpDB.id },
-                data: { foiUsado: true, tentativas: otpDB.tentativas + 1 },
+                data: { foiUsado: true, tentativas: 0 },
             });
 
             console.log(`Código OTP verificado com sucesso para o telefone ${telefone}.`);
