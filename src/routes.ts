@@ -346,14 +346,16 @@ export default async function routes(app: FastifyTypedInstance) {
                     codigo: otp,
                     expiraEm: expiraEm,
                     criadoEm: new Date(),
-                    foiUsado: false
+                    foiUsado: false,
+                    tentativas: 0
                 },
                 create: {
                     telefone: telefone,
                     codigo: otp,
                     expiraEm: expiraEm,
                     criadoEm: new Date(),
-                    foiUsado: false
+                    foiUsado: false,
+                    tentativas: 0
                 }
             });
 
