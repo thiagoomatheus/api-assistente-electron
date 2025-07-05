@@ -1,0 +1,62 @@
+version: '3.9'
+services:
+  # Postgres Service
+  postgres:
+    container_name: postgres
+    image: postgres:16
+    command: ["postgres", "-c", "max_connections=1000", "-c", "listen_addresses=*"]
+    restart: always
+    ports:
+      - 5435:5432
+    environment:
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB:-postgres}
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_USER=${SERVICE_USER_POSTGRES}
+      - DB_POSTGRESDB_PASSWORD=${SERVICE_PASSWORD_POSTGRES}
+      - POSTGRES_USER=${SERVICE_USER_POSTGRES}
+      - POSTGRES_PASSWORD=${SERVICE_PASSWORD_POSTGRES}
+      - POSTGRES_DB=${POSTGRES_DB:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    expose:
+      - 5432
+    networks:
+      - api-electron
+
+  # API Service
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+      args:
+        - DATABASE_URL=postgresql://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@postgres:5432/${POSTGRES_DB:-postgres}
+    ports:
+      - "3334:3333"
+    environment:
+      - DATABASE_URL=postgresql://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@postgres:5432/${POSTGRES_DB:-postgres}
+      - JWT_SECRET=${SERVICE_BASE64_128_JWTSECRET}
+      - JWT_EXPIRES_IN=1800
+      - NODE_ENV=production
+      - GEMINI_API_KEY=${SERVICE_GEMINI_API_KEY_PROD}
+      - API_HOST=${API_HOST}
+      - INSTANCIA_EVO=${SERVICE_USER_EVO}
+      - EVOLUTION_API_URL=${URL_EVOLUTION_API}
+      - EVOLUTION_API_KEY=${SERVICE_BASE64_128_EVOLUTION}
+      - ADMIN_API_KEY=${SERVICE_BASE64_128_ADMIN}
+      - WEBHOOK_ACTIVE=${WEBHOOK_ACTIVE}
+      - ADMIN_ACTIVE=${ADMIN_ACTIVE}
+      - ASAAS_API_KEY=${API_KEY_ASAAS}
+      - ASAAS_API_URL=${API_URL_ASAAS}
+    depends_on:
+      - postgres
+    networks:
+      - api-electron
+
+volumes:
+  postgres_data:
+
+networks:
+  api-electron:
+    name: api-electron
+    driver: bridge
