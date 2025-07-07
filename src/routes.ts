@@ -538,8 +538,9 @@ export default async function routes(app: FastifyTypedInstance) {
                     mensagem: z.string(),
                     dados: z.array(z.object({
                         dia: z.string(),
-                        horario: z.string(),
-                        descricao: z.string()
+                        materia: z.string(),
+                        descricao: z.string(),
+                        habilidades: z.array(z.string())
                     }))
                 }),
                 500: z.object({
