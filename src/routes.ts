@@ -206,7 +206,7 @@ export default async function routes(app: FastifyTypedInstance) {
                 adminApiKey: z.string(),
             }),
             response: {
-                200: z.object({
+                201: z.object({
                 sucesso: z.boolean(),
                 mensagem: z.string(),
                 }),
@@ -227,7 +227,8 @@ export default async function routes(app: FastifyTypedInstance) {
         console.log(`Iniciando rota ${url}`);
 
         if (process.env.ADMIN_ACTIVE !== 'true') {
-            return reply.status(400).send({
+            console.error('Admin desativado');
+            return reply.status(500).send({
                 sucesso: false,
                 mensagem: 'Admin desativado.',
             });
@@ -235,6 +236,7 @@ export default async function routes(app: FastifyTypedInstance) {
         const { telefone, estaPago, adminApiKey, customerId } = req.body;
 
         if (!telefone) {
+            console.error('Telefone e login obrigatórios.');
             return reply.status(400).send({
                 sucesso: false,
                 mensagem: 'Telefone e login obrigatórios.',
@@ -242,6 +244,7 @@ export default async function routes(app: FastifyTypedInstance) {
         }
 
         if (adminApiKey !== process.env.ADMIN_API_KEY) {
+            console.error('Chave de admin inválida.');
             return reply.status(400).send({
                 sucesso: false,
                 mensagem: 'Chave de admin inválida.',
@@ -249,22 +252,25 @@ export default async function routes(app: FastifyTypedInstance) {
         }
 
         try {
-        await prisma.usuario.create({
-            data: {
-                customerId: customerId,
-                telefone: telefone,
-                estaPago: estaPago
-            },
-        });
+            await prisma.usuario.create({
+                data: {
+                    customerId: customerId,
+                    telefone: telefone,
+                    estaPago: estaPago
+                },
+            });
 
-        return reply.status(200).send({
-            sucesso: true,
-            mensagem: 'Usuário criado com sucesso.',
-        });
+            console.log('Usuário criado com sucesso.');
+
+            return reply.status(201).send({
+                sucesso: true,
+                mensagem: 'Usuário criado com sucesso.',
+            });
         } catch (error) {
+            console.error('Erro ao criar usuário: ' + error);
             return reply.status(500).send({
                 sucesso: false,
-                mensagem: 'Erro ao criar usuário: ' + error,
+                mensagem: 'Erro no servidor ao criar usuário',
             });
         }
     });
@@ -277,10 +283,16 @@ export default async function routes(app: FastifyTypedInstance) {
                 telefone: z.string()
             }),
             response: {
-                200: z.object({
+                201: z.object({
                     mensagem: z.string()
                 }),
                 400: z.object({
+                    mensagem: z.string()
+                }),
+                403: z.object({
+                    mensagem: z.string()
+                }),
+                404: z.object({
                     mensagem: z.string()
                 }),
                 500: z.object({
@@ -314,7 +326,7 @@ export default async function routes(app: FastifyTypedInstance) {
 
         if (!usuario) {
             console.log('Usuário não cadastrado!')
-            return reply.status(400).send({ mensagem: 'Usuário não cadastrado!' });
+            return reply.status(404).send({ mensagem: 'Usuário não cadastrado!' });
         };
 
         
@@ -325,7 +337,7 @@ export default async function routes(app: FastifyTypedInstance) {
 
             if (differenceInSeconds(new Date(), usuario.otp.criadoEm) < TEMPO_ESPERA) {
                 console.error('Você precisa esperar 60 segundos para gerar um novo código.');
-                return reply.status(400).send({ mensagem: 'Você precisa esperar 60 segundos para gerar um novo código.' });
+                return reply.status(403).send({ mensagem: 'Você precisa esperar 60 segundos para gerar um novo código.' });
             }
         }
 
@@ -382,12 +394,11 @@ export default async function routes(app: FastifyTypedInstance) {
 
                 if (!resultado.ok) {
                     const resultadoJson = await resultado.json();
-                    console.log('Erro ao enviar OTP para o celular: ' + resultadoJson.response.message);
-                    return reply.status(500).send({ mensagem: 'Erro ao enviar OTP para o celular.' });
+                    throw new Error(`${resultadoJson.response.message}`);
                 }
     
                 console.log('Código OTP enviado para o seu WhatsApp.')
-                return reply.send({ mensagem: 'Código OTP enviado para o seu WhatsApp.' });
+                return reply.status(201).send({ mensagem: 'Código OTP enviado para o seu WhatsApp.' });
             } catch (error) {
                 throw new Error(`${error}`);
             }
@@ -414,6 +425,12 @@ export default async function routes(app: FastifyTypedInstance) {
                     mensagem: z.string()
                 }),
                 400: z.object({
+                    mensagem: z.string()
+                }),
+                403: z.object({
+                    mensagem: z.string()
+                }),
+                404: z.object({
                     mensagem: z.string()
                 }),
                 500: z.object({
@@ -466,28 +483,28 @@ export default async function routes(app: FastifyTypedInstance) {
             });
 
             if (!otpDB) {
-                console.error('OTP inválido.');
-                return reply.status(400).send({ mensagem: 'Código OTP inválido.' });
+                console.error('OTP não cadastrado no banco de dados.');
+                return reply.status(404).send({ mensagem: 'Código OTP inválido.' });
             }
 
             if (otpDB.tentativas >= MAX_TENTATIVAS) {
-                console.error('Tentativas excedidas.');
-                return reply.status(400).send({ mensagem: 'Tentativas excedidas. Gere outro código e tente novamente!' });
+                console.error('Número máximo de tentativas foi excedido: ' + MAX_TENTATIVAS);
+                return reply.status(403).send({ mensagem: 'Tentativas excedidas. Gere outro código e tente novamente!' });
             }
 
             if (otpDB.ultimaTentativa && (differenceInSeconds(new Date(), otpDB.ultimaTentativa) < TEMPO_ESPERA)) {
-                console.error('Você precisa esperar 60 segundos para tentar novamente.');
-                return reply.status(400).send({ mensagem: 'Você precisa esperar 60 segundos para tentar novamente.' });
+                console.error('Código OTP gerado em tempo menos do que o esperado:' + TEMPO_ESPERA + 'segundos.');
+                return reply.status(403).send({ mensagem: 'Você precisa esperar 60 segundos para tentar novamente.' });
             }
 
             if (otpDB.codigo === codigo && otpDB.foiUsado) {
                 console.error('Código OTP ja utilizado.');
-                return reply.status(400).send({ mensagem: 'Código OTP já utilizado.' });
+                return reply.status(401).send({ mensagem: 'Código OTP já utilizado.' });
             }
 
             if (new Date() > otpDB.expiraEm) {
                 console.error('Código OTP expirado.');
-                return reply.status(400).send({ mensagem: 'Código OTP expirado.' });
+                return reply.status(403).send({ mensagem: 'Código OTP expirado.' });
             }
 
             console.log('Atualizando OTP no banco de dados')
