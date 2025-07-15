@@ -24,7 +24,7 @@ app.register(fastifySwagger, {
   openapi: {
     info: {
       title: 'API do Typebot',
-      description: 'Documentação da API do Typebot',
+      description: 'Documentação da API do assistente de ações na Sed',
       version: '1.0.0',
     },
     components: {
