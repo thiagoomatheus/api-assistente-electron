@@ -98,115 +98,6 @@ Siga os passos abaixo para configurar e instalar o projeto. **Recomenda-se o uso
     git clone https://github.com/seu-usuario/seu-projeto.git
     cd seu-projeto
     ```
-2.  **Crie os arquivos Docker:**
-    Crie um arquivo `Dockerfile` na raiz do seu projeto com o seguinte conteúdo:
-    ```dockerfile
-    # Use a imagem oficial do Node.js
-    FROM node:18-alpine
-
-    # Define o diretório de trabalho dentro do contêiner
-    WORKDIR /usr/src/app
-
-    # Copia os arquivos de package.json e package-lock.json para instalar as dependências
-    COPY package*.json ./
-
-    # Instala as dependências do projeto
-    RUN npm install
-
-    # Copia o restante do código-fonte da aplicação
-    COPY . .
-
-    # Constrói o projeto TypeScript
-    RUN npm run build
-
-    # Expõe a porta que a aplicação Fastify irá escutar
-    EXPOSE 3000
-
-    # Comando para iniciar a aplicação em produção (executa o JavaScript compilado)
-    CMD [ "npm", "start" ]
-    ```
-    Crie também um arquivo `.dockerignore` na raiz do projeto para evitar copiar arquivos desnecessários para a imagem Docker:
-    ```
-    node_modules
-    dist
-    .env
-    .git
-    .gitignore
-    Dockerfile
-    docker-compose.yml
-    README.md
-    npm-debug.log
-    ```
-    Crie o arquivo `docker-compose.yml` na raiz do seu projeto para definir os serviços da aplicação:
-    ```yaml
-    version: '3.8'
-
-    services:
-      db:
-        image: postgres:15-alpine
-        restart: always
-        environment:
-          POSTGRES_USER: ${POSTGRES_USER}
-          POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-          POSTGRES_DB: ${POSTGRES_DB}
-        volumes:
-          - postgres_data:/var/lib/postgresql/data
-        ports:
-          - "5432:5432" # Opcional: para acessar o banco de dados diretamente da sua máquina
-        healthcheck:
-          test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-          interval: 5s
-          timeout: 5s
-          retries: 5
-
-      api:
-        build:
-          context: .
-          dockerfile: Dockerfile
-        restart: always
-        ports:
-          - "3000:3000"
-        environment:
-          DATABASE_URL: ${DATABASE_URL}
-          ASAAS_API_URL: ${ASAAS_API_URL}
-          ASAAS_API_KEY: ${ASAAS_API_KEY}
-          WEBHOOK_ACTIVE: ${WEBHOOK_ACTIVE}
-          ADMIN_ACTIVE: ${ADMIN_ACTIVE}
-          ADMIN_API_KEY: ${ADMIN_API_KEY}
-          EVOLUTION_API_URL: ${EVOLUTION_API_URL}
-          EVOLUTION_API_KEY: ${EVOLUTION_API_KEY}
-          INSTANCIA_EVO: ${INSTANCIA_EVO}
-          GEMINI_API_KEY: ${GEMINI_API_KEY}
-          JWT_SECRET: ${JWT_SECRET}
-        depends_on:
-          db:
-            condition: service_healthy # Garante que o DB esteja saudável antes de iniciar a API
-        volumes:
-          # Monta o volume para hot-reloading em desenvolvimento. Remova ou ajuste para produção.
-          # Nota: Garanta que seu `package.json` tenha um script `dev` que use `ts-node` ou similar
-          # para que as mudanças no TypeScript sejam refletidas sem reconstrução completa da imagem.
-          - .:/usr/src/app
-          - /usr/src/app/node_modules # Impede que node_modules do host sobrescreva o do container
-
-    volumes:
-      postgres_data:
-
-    ```
-    **Nota:** As variáveis de ambiente no `docker-compose.yml` são carregadas automaticamente do seu arquivo `.env`.
-
-3.  **Construa as imagens Docker:**
-    ```bash
-    docker compose build
-    ```
-4.  **Execute as migrações do Prisma no contêiner do banco de dados:**
-    Certifique-se de que o serviço `db` esteja rodando ou inicie-o antes de executar as migrações.
-    ```bash
-    docker compose run --rm api npx prisma migrate dev --name init
-    ```
-    Para gerar o cliente Prisma (se necessário, após alterações no schema):
-    ```bash
-    docker compose run --rm api npx prisma generate
-    ```
 
 ## ▶️ Como Rodar
 
@@ -214,26 +105,21 @@ Siga os passos abaixo para configurar e instalar o projeto. **Recomenda-se o uso
 
 Para iniciar todos os serviços (API e Banco de Dados) usando Docker Compose:
 
-#### Modo de Desenvolvimento (com hot-reloading)
+#### Modo de Desenvolvimento 
 
 Para rodar a aplicação em modo de desenvolvimento com hot-reloading (ideal para o fluxo de trabalho TypeScript):
 
 ```bash
 # Inicia os serviços em background
-docker compose up -d
-
-# Para entrar no contêiner da API e iniciar o modo de desenvolvimento
-# (assumindo que seu package.json tem um script `dev` que usa `ts-node` ou similar)
-docker compose exec api npm run dev
+docker compose -f compose.dev.yml up -d
 ```
-O volume montado permitirá que as alterações no código TypeScript local sejam refletidas, e o `npm run dev` (se configurado corretamente) fará a recompilação e reinício.
 
 #### Modo de Produção
 
 Para construir as imagens e iniciar a aplicação compilada em segundo plano (detached mode):
 
 ```bash
-docker compose up --build -d
+docker compose -f compose.prod.yml up --build -d
 ```
 Para parar os serviços:
 ```bash
