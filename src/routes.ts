@@ -378,9 +378,7 @@ export default async function routes(app: FastifyTypedInstance) {
             };
             const data = {
                 number: `+55${telefone}`,
-                textMessage: {
-                    text: message,
-                },
+                text: message,
             };
 
             console.log(`Enviando código para celular - ${process.env.EVOLUTION_API_URL!}/message/sendText/${process.env.INSTANCIA_EVO}`)
