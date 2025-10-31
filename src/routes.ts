@@ -480,11 +480,17 @@ export default async function routes(app: FastifyTypedInstance) {
                 return otp;
             });
 
+            
             if (!otpDB) {
                 console.error('OTP não cadastrado no banco de dados.');
                 return reply.status(404).send({ mensagem: 'Código OTP inválido.' });
             }
 
+            if (otpDB?.codigo  !== codigo) {
+                console.error('Código informado não confere com o banco de dados.');
+                return reply.status(404).send({ mensagem: 'Código OTP inválido.' });
+            }
+            
             if (otpDB.tentativas >= MAX_TENTATIVAS) {
                 console.error('Número máximo de tentativas foi excedido: ' + MAX_TENTATIVAS);
                 return reply.status(403).send({ mensagem: 'Tentativas excedidas. Gere outro código e tente novamente!' });
