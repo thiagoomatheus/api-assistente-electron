@@ -8,6 +8,20 @@ import { ContentListUnion, GenerateContentConfig, GoogleGenAI, Type } from "@goo
 
 export default async function routes(app: FastifyTypedInstance) {
 
+    app.get('/', {
+        schema: {
+            tags: ['Geral'],
+            description: 'Rota de teste para verificar se a API está no ar.',
+            response: {
+                200: z.object({
+                    mensagem: z.string()
+                })
+            }
+        }
+    }, async (req, reply) => {
+        return reply.status(200).send({ mensagem: 'On' });
+    });
+
     app.post('/webhooks', async (req, reply) => {
 
         const url = req.url;
